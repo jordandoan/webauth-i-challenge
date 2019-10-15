@@ -20,7 +20,7 @@ server.use(
   })
 );
 server.use(express.json());
-
+server.use(globalMiddleware);
 
 server.post("/api/users", (req,res) => {
   if (req.body) {
@@ -62,11 +62,19 @@ server.get("/api/restricted/:any", restricted, (req,res) => {
 })
 
 function restricted(req, res, next) {
-  console.log(req.session.user);
   if (req.session && req.session.user) {
     next();
   } else {
     res.status(401).json({ message: 'YOU SHALL NOT PASS' });
+  }
+}
+
+function globalMiddleware(req,res,next) { 
+  const path = req.path;
+  if (path.includes('/api/restricted/')) {
+    restricted(req,res,next);
+  } else {
+    next();
   }
 }
 
