@@ -1,9 +1,26 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const session = require("express-session");
+
 const db = require('./users-model');
 
 const server = express();
+
+server.use(
+  session({
+    name: 'chickenwang', // default is connect.sid
+    secret: 'secret secret secret secret password',
+    cookie: {
+      maxAge: 1 * 3 * 60 * 60 * 1000,
+      secure: false, // only set cookies over https. Server will not send back a cookie over http.
+    },
+    httpOnly: true, // don't let JS code access cookies. Browser extensions run JS code on your browser!
+    resave: false,
+    saveUninitialized: false,
+  })
+);
 server.use(express.json());
+
 
 server.post("/api/users", (req,res) => {
   if (req.body) {
@@ -24,7 +41,8 @@ server.post("/api/login", (req,res) => {
         if (!user || !bcrypt.compareSync(req.body.password, user.password)) {
           res.status(401).json({ error: 'Incorrect credentials' });
         } else {
-          res.status(200).json({message: "Successfully logged in!"});
+          req.session.user = user;
+          res.status(201).json({message: "Successfully logged in!"});
         }
       })
       .catch(err => res.status(500).json(id));
@@ -44,21 +62,11 @@ server.get("/api/restricted/:any", restricted, (req,res) => {
 })
 
 function restricted(req, res, next) {
-  const { username, password } = req.headers;
-  if (username && password) {
-    db.login({ username })
-      .then(user => {
-        if (user && bcrypt.compareSync(password, user.password)) {
-          next();
-        } else {
-          res.status(401).json({ message: 'YOU SHALL NOT PASS' });
-        }
-      })
-      .catch(error => {
-        res.status(500).json({ message: 'Unexpected error' });
-      });
+  console.log(req.session.user);
+  if (req.session && req.session.user) {
+    next();
   } else {
-    res.status(400).json({ message: 'YOU SHALL NOT PASS' });
+    res.status(401).json({ message: 'YOU SHALL NOT PASS' });
   }
 }
 
